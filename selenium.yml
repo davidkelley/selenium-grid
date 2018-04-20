@@ -464,6 +464,10 @@ Resources:
 
 Outputs:
 
+  DNSName:
+    Description: DNS Name for the Selenium Hub
+    Value: !GetAtt ALB.DNSName
+
   URL:
     Description: URL of the service
     Value: !Sub "http://${ALB.DNSName}"

@@ -84,7 +84,7 @@ Resources:
                 StackName: !Sub "${AWS::StackName}-selenium"
                 TemplatePath: GitHubOutput::selenium.yml
                 OutputFileName: Outputs.json
-            - Name: URL
+            - Name: DNSName
               RunOrder: 2
               ActionTypeId:
                 Category: Deploy
@@ -98,12 +98,12 @@ Resources:
                 ActionMode: REPLACE_ON_FAILURE
                 Capabilities: CAPABILITY_IAM
                 RoleArn: !GetAtt CloudformationRole.Arn
-                StackName: !Sub "${AWS::StackName}-selenium-parameter-url"
+                StackName: !Sub "${AWS::StackName}-selenium-parameter-dns"
                 TemplatePath: GitHubOutput::parameter.yml
                 ParameterOverrides: !Sub |
                   {
-                    "Key": "/Temp/${AWS::StackName}/URL",
-                    "Value": { "Fn::GetParam": ["SeleniumOutput", "Outputs.json", "URL"] }
+                    "Key": "/Temp/${AWS::StackName}/DNSName",
+                    "Value": { "Fn::GetParam": ["SeleniumOutput", "Outputs.json", "DNSName"] }
                   }
             - Name: Test
               RunOrder: 3
@@ -118,7 +118,7 @@ Resources:
                 ProjectName: !Ref TestBuild
         - Name: Teardown
           Actions:
-            - Name: URL
+            - Name: DNSName
               RunOrder: 1
               ActionTypeId:
                 Category: Deploy
@@ -128,7 +128,7 @@ Resources:
               Configuration:
                 ActionMode: DELETE_ONLY
                 RoleArn: !GetAtt CloudformationRole.Arn
-                StackName: !Sub "${AWS::StackName}-selenium-parameter-url"
+                StackName: !Sub "${AWS::StackName}-selenium-parameter-dns"
             - Name: Selenium
               RunOrder: 2
               ActionTypeId:
@@ -159,7 +159,7 @@ Resources:
         EnvironmentVariables:
           - Name: SELENIUM_REMOTE_HOST
             Type: PARAMETER_STORE
-            Value: !Sub "/Temp/${AWS::StackName}/URL"
+            Value: !Sub "/Temp/${AWS::StackName}/DNSName"
           - Name: TARGET_URL
             Type: PLAINTEXT
             Value: "https://google.com"

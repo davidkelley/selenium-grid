@@ -1,0 +1,16 @@
+version: 0.2
+
+env:
+  variables:
+    SELENIUM_REMOTE_HOST: CODEPIPELINE
+    TARGET_URL: CODEPIPELINE
+
+phases:
+  pre_build:
+    commands:
+      - npm install
+
+  build:
+    commands:
+      - npm run test:features:capabilities -- --host $SELENIUM_REMOTE_HOST > caps.json
+      - npm run test:features -- --host $SELENIUM_REMOTE_HOST -b $TARGET_URL --capabilities caps.json
