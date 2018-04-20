@@ -342,7 +342,7 @@ Resources:
               waitAfterCompletion: 0
             7-setup-selenium-node:
               command: !Sub >
-                c:\tools\ewmp choco install -y selenium --params "'/role:node /hub:http://${ALB.DNSName}:80 /capabilitiesJson:c:\tools\capabilities.json /autostart'"
+                c:\tools\ewmp choco install -y selenium --params "'/role:node /maxSession:1 /hub:http://${ALB.DNSName}:80 /capabilitiesJson:c:\tools\capabilities.json /autostart'"
               waitAfterCompletion: 0
 
   Win2016AutoScalingGroup:
