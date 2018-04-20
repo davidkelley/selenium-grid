@@ -18,6 +18,8 @@
     "chai": "^4.1.2",
     "cucumber": "^4.2.0",
     "faker": "~4.1.0",
+    "minimist": "^1.2.0",
+    "selenium-grid-status": "^0.2.0",
     "selenium-webdriver": "^4.0.0-alpha.1",
     "wdio-allure-reporter": "^0.6.0",
     "wdio-cucumber-framework": "1.1.1",
@@ -26,6 +28,7 @@
   },
   "scripts": {
     "test:features": "NODE_ENV=test wdio",
+    "test:features:capabilities": "babel-node capabilities.js",
     "test:features:report:create": "allure generate -c",
     "test:features:report:serve": "allure serve"
   }

@@ -1,3 +1,17 @@
+const minimist = require('minimist');
+const fs = require('fs');
+
+const determineCapabilities = () => {
+  const { capabilities = null } = minimist(process.argv.slice(2));
+  if (!capabilities) {
+    return [{ browserName: 'chrome' }];
+  } else {
+    return JSON.parse(fs.readFileSync(capabilities, 'utf8'));
+  }
+};
+
+const desiredCapabilities = determineCapabilities();
+
 exports.config = {
   //
   // =====================
@@ -52,10 +66,7 @@ exports.config = {
   // Sauce Labs platform configurator - a great tool to configure your capabilities:
   // https://docs.saucelabs.com/reference/platforms-configurator
   //
-  capabilities: [
-    { browserName: 'firefox', version: '59.0.2' },
-    // { browserName: 'chrome' },
-  ],
+  capabilities: desiredCapabilities,
   //
   // ===================
   // Test Configurations
@@ -257,8 +268,6 @@ exports.config = {
       const name = `./${+new Date().getTime()}.${Math.random()}.png`;
       browser.saveScreenshot(name);
     }
-
-    // console.log(JSON.stringify(stepResult.status, null, '  '));
   },
   /**
    * Runs after a Cucumber scenario
