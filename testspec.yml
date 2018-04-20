@@ -4,13 +4,23 @@ env:
   variables:
     SELENIUM_REMOTE_HOST: CODEPIPELINE
     TARGET_URL: CODEPIPELINE
+    REPORT_LOCATION: CODEPIPELINE
 
 phases:
+  # install:
+    # commands:
+      # - apt-get install -y default-jdk
+
   pre_build:
     commands:
       - npm install
 
   build:
     commands:
-      - npm run test:features:capabilities -- --host $SELENIUM_REMOTE_HOST > caps.json
+      - npm run test:features:capabilities --silent -- --host $SELENIUM_REMOTE_HOST > caps.json
       - npm run test:features -- --host $SELENIUM_REMOTE_HOST -b $TARGET_URL --capabilities caps.json
+      - npm run test:features:report:create
+
+  post_build:
+    commands:
+      - aws s3 cp allure-report s3://$REPORT_LOCATION/latest --recursive --acl public-read

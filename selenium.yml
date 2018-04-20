@@ -10,6 +10,25 @@ Parameters:
       Which instance type should we use to build the ECS cluster?
     Default: c4.large
 
+  IncludeIE:
+    Type: String
+    Default: true
+    Description: |
+      Create a IE11 & IE10 Grid node?
+    AllowedValues:
+      - true
+      - false
+
+  KeyName:
+    Type: String
+    NoEcho: true
+    Description: |
+      The EC2 Keypair name to access selenium instances
+
+Conditions:
+
+  UseIE: !Equals [ !Ref "IncludeIE", "true" ]
+
 Mappings:
 
   Win2016RegionToAMI:
@@ -143,12 +162,6 @@ Resources:
           Image: selenium/hub:3.11.0
           PortMappings:
             - ContainerPort: 4444
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: !Ref LogGroup
-              awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: hub
         - Name: chrome-65
           Essential: true
           Image: selenium/node-chrome:3.11.0
@@ -180,11 +193,6 @@ Resources:
           Links:
             - hub
 
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      RetentionInDays: 1
-
   VPCInbound:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -203,15 +211,6 @@ Resources:
       ToPort: 80
       CidrIp: 0.0.0.0/0
 
-  HTTPSInbound:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !GetAtt VPC.DefaultSecurityGroup
-      IpProtocol: tcp
-      FromPort: 443
-      ToPort: 443
-      CidrIp: 0.0.0.0/0
-
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -220,7 +219,7 @@ Resources:
         - !Ref SubnetB
       LaunchConfigurationName: !Ref LaunchConfiguration
       MinSize: 1
-      MaxSize: 2
+      MaxSize: 1
       DesiredCapacity: 1
       Tags:
         - Key: Name
@@ -240,6 +239,7 @@ Resources:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: !FindInMap [LinuxECSRegionToAMI, !Ref "AWS::Region", AMI]
+      KeyName: !Ref KeyName
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !GetAtt VPC.DefaultSecurityGroup
@@ -254,6 +254,7 @@ Resources:
           /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
 
   Win2012AutoScalingGroup:
+    Condition: UseIE
     Type: AWS::AutoScaling::AutoScalingGroup
     CreationPolicy:
       ResourceSignal:
@@ -269,7 +270,7 @@ Resources:
         - !Ref SubnetB
       LaunchConfigurationName: !Ref Win2012LaunchConfiguration
       MinSize: 1
-      MaxSize: 2
+      MaxSize: 1
       DesiredCapacity: 1
       Tags:
         - Key: Name
@@ -277,10 +278,11 @@ Resources:
           PropagateAtLaunch: true
 
   Win2012LaunchConfiguration:
+    Condition: UseIE
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: !FindInMap [Win2012RegionToAMI, !Ref "AWS::Region", AMI]
-      KeyName: windows
+      KeyName: !Ref KeyName
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !GetAtt VPC.DefaultSecurityGroup
@@ -344,6 +346,7 @@ Resources:
               waitAfterCompletion: 0
 
   Win2016AutoScalingGroup:
+    Condition: UseIE
     Type: AWS::AutoScaling::AutoScalingGroup
     CreationPolicy:
       ResourceSignal:
@@ -359,7 +362,7 @@ Resources:
         - !Ref SubnetB
       LaunchConfigurationName: !Ref Win2016LaunchConfiguration
       MinSize: 1
-      MaxSize: 2
+      MaxSize: 1
       DesiredCapacity: 1
       Tags:
         - Key: Name
@@ -368,10 +371,11 @@ Resources:
 
   Win2016LaunchConfiguration:
     # AWS::CloudFormation::Init is shared with Win2012LaunchConfiguration
+    Condition: UseIE
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
       ImageId: !FindInMap [Win2016RegionToAMI, !Ref "AWS::Region", AMI]
-      KeyName: windows
+      KeyName: !Ref KeyName
       InstanceType: !Ref InstanceType
       SecurityGroups:
         - !GetAtt VPC.DefaultSecurityGroup

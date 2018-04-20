@@ -27,6 +27,11 @@ Parameters:
     Description: |
       Branch to use from the repository.
 
+  SeleniumKeyPairName:
+    Type: String
+    Description: |
+      Name of the EC2 Keypair for Selenium EC2 Instances
+
 Resources:
 
   PipelineArtifactStore:
@@ -38,6 +43,26 @@ Resources:
         Rules:
           - Status: Enabled
             ExpirationInDays: 1
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        RoutingRules:
+          - RedirectRule:
+              ReplaceKeyPrefixWith: reports/latest/
+            RoutingRuleCondition:
+              HttpErrorCodeReturnedEquals: 404
+
+  PipelineArtifactStoreReportPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PipelineArtifactStore
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:GetObject'
+            Effect: Allow
+            Principal: '*'
+            Resource:
+              - !Sub "${PipelineArtifactStore.Arn}/reports/*"
 
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -84,6 +109,10 @@ Resources:
                 StackName: !Sub "${AWS::StackName}-selenium"
                 TemplatePath: GitHubOutput::selenium.yml
                 OutputFileName: Outputs.json
+                ParameterOverrides: !Sub |
+                  {
+                    "KeyName": "${SeleniumKeyPairName}"
+                  }
             - Name: DNSName
               RunOrder: 2
               ActionTypeId:
@@ -157,6 +186,9 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/nodejs:7.0.0
         EnvironmentVariables:
+          - Name: REPORT_LOCATION
+            Type: PLAINTEXT
+            Value: !Sub "${PipelineArtifactStore}/reports"
           - Name: SELENIUM_REMOTE_HOST
             Type: PARAMETER_STORE
             Value: !Sub "/Temp/${AWS::StackName}/DNSName"
@@ -259,8 +291,6 @@ Resources:
   BuildRole:
     Type: AWS::IAM::Role
     Properties:
-      ManagedPolicyArns:
-        - !GetAtt MasterRegion.CharactersExecutionManagedPolicy
       AssumeRolePolicyDocument:
         Statement:
         - Action: sts:AssumeRole
@@ -297,3 +327,7 @@ Outputs:
   PipelineConsoleURL:
     Description: Pipeline URL
     Value: !Sub "https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}"
+
+  ReportsURL:
+    Description: URL to view Test Reports
+    Value: !Sub "${PipelineArtifactStore.WebsiteURL}/reports/latest"
