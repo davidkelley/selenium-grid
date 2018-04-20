@@ -1,0 +1,32 @@
+{
+  "name": "selenium-test",
+  "version": "0.1.0",
+  "private": true,
+  "main": "handler.js",
+  "engines": {
+    "node": ">=6"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "allure-commandline": "^2.5.0",
+    "assert": "^1.4.1",
+    "babel-cli": "^6.26.0",
+    "babel-eslint": "^8.1.2",
+    "babel-loader": "^7.0.0",
+    "babel-polyfill": "^6.23.0",
+    "babel-preset-env": "^1.4.0",
+    "chai": "^4.1.2",
+    "cucumber": "^4.2.0",
+    "faker": "~4.1.0",
+    "selenium-webdriver": "^4.0.0-alpha.1",
+    "wdio-allure-reporter": "^0.6.0",
+    "wdio-cucumber-framework": "1.1.1",
+    "wdio-selenium-standalone-service": "0.0.10",
+    "webdriverio": "^4.12.0"
+  },
+  "scripts": {
+    "test:features": "NODE_ENV=test wdio",
+    "test:features:report:create": "allure generate -c",
+    "test:features:report:serve": "allure serve"
+  }
+}

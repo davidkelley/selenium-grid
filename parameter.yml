@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "Selenium Test Parameter"  
+
+Parameters:
+
+  Key:
+    Type: String
+    Description: |
+      The parameter key to create
+
+  Value:
+    Type: String
+    NoEcho: true
+    Description: |
+      The parameter value to store
+
+Resources:
+
+  Parameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Ref Key
+      Type: String
+      Value: !Ref Value

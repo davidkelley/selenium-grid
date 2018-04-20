@@ -1,0 +1,473 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: "[TODO] Selenium Testing Grid"
+
+Parameters:
+
+  InstanceType:
+    Type: String
+    Description: |
+      Which instance type should we use to build the ECS cluster?
+    Default: c4.large
+
+Mappings:
+
+  Win2016RegionToAMI:
+    eu-central-1:
+      AMI: ami-b5530b5e
+    eu-west-1:
+      AMI: ami-4cc09a35
+    eu-west-2:
+      AMI: ami-9c6b8dfb
+    us-east-1:
+      AMI: ami-838b53fc
+
+  Win2012RegionToAMI:
+    eu-central-1:
+      AMI: ami-6eb0e885
+    eu-west-1:
+      AMI: ami-813015f8
+    eu-west-2:
+      AMI: ami-a0d838c7
+    us-east-1:
+      AMI: ami-66c71f19
+
+  LinuxECSRegionToAMI:
+    us-east-2:
+      AMI: ami-b86a5ddd
+    us-east-1:
+      AMI: ami-a7a242da
+    us-west-2:
+      AMI: ami-92e06fea
+    us-west-1:
+      AMI: ami-9ad4dcfa
+    eu-west-3:
+      AMI: ami-698b3d14
+    eu-west-2:
+      AMI: ami-f4e20693
+    eu-west-1:
+      AMI: ami-0693ed7f
+    eu-central-1:
+      AMI: ami-0799fa68
+    ap-northeast-2:
+      AMI: ami-a5dd70cb
+    ap-northeast-1:
+      AMI: ami-68ef940e
+    ap-southeast-2:
+      AMI: ami-ee884f8c
+    ap-southeast-1:
+      AMI: ami-0a622c76
+    ca-central-1:
+      AMI: ami-5ac94e3e
+    ap-south-1:
+      AMI: ami-2e461a41
+    sa-east-1:
+      AMI: ami-d44008b8
+
+Resources:
+
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+      - Key: idle_timeout.timeout_seconds
+        Value: 30
+      Subnets:
+        - !Ref SubnetA
+        - !Ref SubnetB
+      SecurityGroups:
+        - !GetAtt VPC.DefaultSecurityGroup
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - '*'
+      ListenerArn: !Ref Listener
+      Priority: 1
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /grid/api/hub
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 20
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VPC
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+
+  Service:
+    DependsOn: Listener
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref Cluster
+      DesiredCount: 1
+      TaskDefinition: !Ref Definition
+      LoadBalancers:
+        - TargetGroupArn: !Ref TargetGroup
+          ContainerPort: 4444
+          ContainerName: hub
+
+  Definition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: 2048
+      Memory: 2048
+      ContainerDefinitions:
+        - Name: hub
+          Essential: true
+          Image: selenium/hub:3.11.0
+          PortMappings:
+            - ContainerPort: 4444
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: hub
+        - Name: chrome-65
+          Essential: true
+          Image: selenium/node-chrome:3.11.0
+          Links:
+            - hub
+        - Name: firefox-59
+          Essential: true
+          Image: selenium/node-firefox:3.11.0
+          Links:
+            - hub
+        - Name: chrome-64
+          Essential: true
+          Image: selenium/node-chrome:3.10.0
+          Links:
+            - hub
+        - Name: firefox-58
+          Essential: true
+          Image: selenium/node-firefox:3.10.0
+          Links:
+            - hub
+        - Name: chrome-63
+          Essential: true
+          Image: selenium/node-chrome:3.8.1-erbium
+          Links:
+            - hub
+        - Name: firefox-57
+          Essential: true
+          Image: selenium/node-firefox:3.8.1-erbium
+          Links:
+            - hub
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 1
+
+  VPCInbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt VPC.DefaultSecurityGroup
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !GetAtt VPC.DefaultSecurityGroup
+
+  HTTPInbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt VPC.DefaultSecurityGroup
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+
+  HTTPSInbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt VPC.DefaultSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: 0.0.0.0/0
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref SubnetA
+        - !Ref SubnetB
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      MinSize: 1
+      MaxSize: 2
+      DesiredCapacity: 1
+      Tags:
+        - Key: Name
+          Value: Selenium
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+
+  LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [LinuxECSRegionToAMI, !Ref "AWS::Region", AMI]
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !GetAtt VPC.DefaultSecurityGroup
+      IamInstanceProfile: !Ref InstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum install -y aws-cfn-bootstrap
+          echo ECS_CLUSTER=${Cluster} >> /etc/ecs/ecs.config
+          cat /etc/ecs/ecs.config
+          start ecs
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
+
+  Win2012AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref SubnetA
+        - !Ref SubnetB
+      LaunchConfigurationName: !Ref Win2012LaunchConfiguration
+      MinSize: 1
+      MaxSize: 2
+      DesiredCapacity: 1
+      Tags:
+        - Key: Name
+          Value: Selenium
+          PropagateAtLaunch: true
+
+  Win2012LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [Win2012RegionToAMI, !Ref "AWS::Region", AMI]
+      KeyName: windows
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !GetAtt VPC.DefaultSecurityGroup
+      IamInstanceProfile: !Ref InstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          <script>
+            cfn-init.exe -v -s ${AWS::StackName} -r Win2012LaunchConfiguration --region ${AWS::Region}
+            cfn-signal.exe -e %ERRORLEVEL% --resource Win2012AutoScalingGroup --stack ${AWS::StackName} --region ${AWS::Region}
+            shutdown -r
+          </script>
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            "c:/tools/capabilities.json":
+              content: |
+                [{
+                  "browserName": "internet explorer",
+                  "maxInstances": 1,
+                  "version": "autoversion",
+                  "seleniumProtocol": "WebDriver"
+                }]
+            "c:/tools/admin.passwd":
+              content: !Ref AWS::StackId
+            "c:/tools/set-password.ps1":
+              source: https://raw.githubusercontent.com/aws-samples/aws-cfn-windows-hpc-template/master/cfn-init/change-administrator-password.ps1
+            "c:/tools/ewmp.cmd":
+              content: |
+                @ECHO OFF
+                FOR /F "tokens=3,*" %%a IN ('REG QUERY "HKLM\System\CurrentControlSet\Control\Session Manager\Environment" /v PATH') DO PATH %%a%%b
+                %*
+          commands:
+            1-configure-administrator-user:
+              command: >
+                powershell -NoProfile -File c:/tools/set-password.ps1 c:/tools/admin.passwd
+              waitAfterCompletion: 0
+            2-install-chocolatey:
+              command: >
+                powershell -NoProfile -ExecutionPolicy unrestricted -Command "Invoke-Expression ((New-Object Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
+              waitAfterCompletion: 0
+            3-install-selenium-ie-drivers:
+              command: >
+                c:\tools\ewmp choco install -y jdk8 selenium-ie-driver autologon
+              waitAfterCompletion: 0
+            4-setup-autologon:
+              command: !Sub >
+                c:\tools\ewmp autologon Administrator / ${AWS::StackId}
+              waitAfterCompletion: 0
+            5-configure-ie-configuration:
+              command: >
+                powershell -NoProfile -ExecutionPolicy unrestricted -Command "Invoke-Expression ((New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/dhoer/choco-selenium/master/ie-configuration.ps1'))"
+              waitAfterCompletion: 0
+            6-adjust-secure-mode-registry-key:
+              command: >
+                reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v WarnonZoneCrossing /d "0" /t REG_DWORD /f
+              waitAfterCompletion: 0
+            7-setup-selenium-node:
+              command: !Sub >
+                c:\tools\ewmp choco install -y selenium --params "'/role:node /hub:http://${ALB.DNSName}:80 /capabilitiesJson:c:\tools\capabilities.json /autostart'"
+              waitAfterCompletion: 0
+
+  Win2016AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MaxBatchSize: 1
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref SubnetA
+        - !Ref SubnetB
+      LaunchConfigurationName: !Ref Win2016LaunchConfiguration
+      MinSize: 1
+      MaxSize: 2
+      DesiredCapacity: 1
+      Tags:
+        - Key: Name
+          Value: Selenium
+          PropagateAtLaunch: true
+
+  Win2016LaunchConfiguration:
+    # AWS::CloudFormation::Init is shared with Win2012LaunchConfiguration
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [Win2016RegionToAMI, !Ref "AWS::Region", AMI]
+      KeyName: windows
+      InstanceType: !Ref InstanceType
+      SecurityGroups:
+        - !GetAtt VPC.DefaultSecurityGroup
+      IamInstanceProfile: !Ref InstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          <script>
+            cfn-init.exe -v -s ${AWS::StackName} -r Win2012LaunchConfiguration --region ${AWS::Region}
+            cfn-signal.exe -e %ERRORLEVEL% --resource Win2016AutoScalingGroup --stack ${AWS::StackName} --region ${AWS::Region}
+            shutdown -r
+          </script>
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref InstanceRole
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: !Sub "ec2.${AWS::URLSuffix}"
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs "" ]
+      CidrBlock: 10.0.1.0/24
+
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 1, !GetAZs "" ]
+      CidrBlock: 10.0.2.0/24
+
+  Gateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref Gateway
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  Route:
+    DependsOn: GatewayToInternet
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref Gateway
+
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetA
+      RouteTableId: !Ref RouteTable
+
+  SubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetB
+      RouteTableId: !Ref RouteTable
+
+Outputs:
+
+  URL:
+    Description: URL of the service
+    Value: !Sub "http://${ALB.DNSName}"
+
+  ConsoleURL:
+    Description: URL of the service
+    Value: !Sub "http://${ALB.DNSName}/grid/console"
