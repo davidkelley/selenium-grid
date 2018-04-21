@@ -10,8 +10,8 @@ grid.available({ host, port }, (err, node) => {
     throw err;
   }
   node.forEach(({ browser }) => {
-    browser.forEach(({ platform, browserName, version }) => {
-      capabilities.push({ platform, browserName, version });
+    browser.forEach(({ browserName, version }) => {
+      capabilities.push({ browserName, version });
     });
   });
   console.log(JSON.stringify(capabilities, null, '  '));

@@ -7,9 +7,9 @@ env:
     REPORT_LOCATION: CODEPIPELINE
 
 phases:
-  # install:
-    # commands:
-      # - apt-get install -y default-jdk
+  install:
+    commands:
+      - apt-get install -y default-jdk
 
   pre_build:
     commands:
@@ -23,4 +23,6 @@ phases:
 
   post_build:
     commands:
+      - DATE=`date +%Y/%m/%d/%H:%M`
       - aws s3 cp allure-report s3://$REPORT_LOCATION/latest --recursive --acl public-read
+      - aws s3 cp allure-report s3://$REPORT_LOCATION/$DATE --recursive --acl public-read

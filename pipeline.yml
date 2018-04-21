@@ -89,10 +89,21 @@ Resources:
                 Repo: !Select [ 1, !Split [ "/", !Ref Repository ] ]
                 Branch: !Ref Branch
                 OAuthToken: !Ref GitHubToken
-        - Name: Test
+        - Name: Selenium
           Actions:
-            - Name: Selenium
+            - Name: Reset
               RunOrder: 1
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: 1
+              Configuration:
+                ActionMode: DELETE_ONLY
+                RoleArn: !GetAtt CloudformationRole.Arn
+                StackName: !Sub "${AWS::StackName}-selenium"
+            - Name: Create
+              RunOrder: 2
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -113,8 +124,8 @@ Resources:
                   {
                     "KeyName": "${SeleniumKeyPairName}"
                   }
-            - Name: DNSName
-              RunOrder: 2
+            - Name: DNS
+              RunOrder: 3
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -134,8 +145,10 @@ Resources:
                     "Key": "/Temp/${AWS::StackName}/DNSName",
                     "Value": { "Fn::GetParam": ["SeleniumOutput", "Outputs.json", "DNSName"] }
                   }
+        - Name: Test
+          Actions:
             - Name: Test
-              RunOrder: 3
+              RunOrder: 1
               InputArtifacts:
                 - Name: GitHubOutput
               ActionTypeId:
@@ -147,7 +160,7 @@ Resources:
                 ProjectName: !Ref TestBuild
         - Name: Teardown
           Actions:
-            - Name: DNSName
+            - Name: DNS
               RunOrder: 1
               ActionTypeId:
                 Category: Deploy
