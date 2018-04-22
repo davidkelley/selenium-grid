@@ -10,7 +10,7 @@ phases:
   install:
     commands:
       - apt-get update
-      - apt-get install -y default-jdk
+      - apt-get install -y openjdk-8-jre
 
   pre_build:
     commands:
