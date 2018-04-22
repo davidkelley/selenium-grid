@@ -1,3 +1,4 @@
 allure-*
 node_modules
 /*.png
+caps.json

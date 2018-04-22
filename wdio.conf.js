@@ -1,10 +1,12 @@
 const minimist = require('minimist');
 const fs = require('fs');
 
+const { TARGET_BROWSER = 'chrome' } = process.env;
+
 const determineCapabilities = () => {
   const { capabilities = null } = minimist(process.argv.slice(2));
   if (!capabilities) {
-    return [{ browserName: 'chrome' }];
+    return [{ browserName: TARGET_BROWSER }];
   } else {
     return JSON.parse(fs.readFileSync(capabilities, 'utf8'));
   }
