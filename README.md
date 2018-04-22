@@ -66,6 +66,22 @@ You can then include these specific capabilities by passing the file as a comman
 npm run test:features --silent -- --host $SELENIUM_URL -b $TARGET_URL --capabilities capabilities.json
 ```
 
+## Generating Reports
+
+![Allure](.github/images/allure.png)
+
+Allure Results are generated automatically when tests are executed. To generate the reports, you will need Java installed.
+
+**To create the report**
+```
+npm run test:features:report:create
+```
+
+**To view the report**
+```
+npm run test:features:report:serve
+```
+
 #### All Browsers
 
 In-order to execute tests against all supported browsers, we first need to discover capabilities, using the following command:
@@ -78,4 +94,4 @@ This command uses the `selenium-grid-status` NPM library to discover Hub Node ca
 
 ## CI/CD Pipeline
 
-## Generating Reports
+**TODO**
