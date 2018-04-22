@@ -9,6 +9,7 @@ env:
 phases:
   install:
     commands:
+      - apt-get update
       - apt-get install -y default-jdk
 
   pre_build:
