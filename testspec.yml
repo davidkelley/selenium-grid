@@ -9,8 +9,8 @@ env:
 phases:
   install:
     commands:
-      - apt-get update
-      - apt-get install -y openjdk-8-jre
+      - add-apt-repository ppa:webupd8team/java && apt-get update
+      - apt-get install -y oracle-java8-installer
 
   pre_build:
     commands:
